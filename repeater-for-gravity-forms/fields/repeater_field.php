@@ -1,6 +1,6 @@
 <?php
 // If Gravity Forms isn't loaded, bail.
-if (! class_exists('GFForms')) {
+if (!class_exists('GFForms')) {
 	die();
 }
 /**
@@ -41,7 +41,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 	{
 		return array(
 			'group' => 'advanced_fields',
-			'text'  => $this->get_form_editor_field_title()
+			'text' => $this->get_form_editor_field_title()
 		);
 	}
 	/**
@@ -116,21 +116,21 @@ class Superaddons_GFRepeater_Field extends GF_Field
 			$value = '';
 		}
 		$is_entry_detail = $this->is_entry_detail();
-		$is_form_editor  = $this->is_form_editor();
-		$form_id  = $form['id'];
-		$id       = intval($this->id);
+		$is_form_editor = $this->is_form_editor();
+		$form_id = $form['id'];
+		$id = intval($this->id);
 		$field_id = $is_entry_detail || $is_form_editor || $form_id == 0 ? "input_$id" : 'input_' . $form_id . "_$id";
-		$size          = $this->size;
+		$size = $this->size;
 		$disabled_text = $is_form_editor ? "disabled='disabled'" : '';
-		$class_suffix  = $is_entry_detail ? '_admin' : '';
-		$class         = $size . $class_suffix . " gf-field-repeater-data hidden";
-		$class         = esc_attr($class);
+		$class_suffix = $is_entry_detail ? '_admin' : '';
+		$class = $size . $class_suffix . " gf-field-repeater-data hidden";
+		$class = esc_attr($class);
 		$instruction_div = '';
-		$html_input_type       = 'hidden';
+		$html_input_type = 'hidden';
 		$placeholder_attribute = $this->get_field_placeholder_attribute();
-		$required_attribute    = $this->isRequired ? 'aria-required="true"' : '';
-		$invalid_attribute     = $this->failed_validation ? 'aria-invalid="true"' : 'aria-invalid="false"';
-		$aria_describedby      = $this->get_aria_describedby();
+		$required_attribute = $this->isRequired ? 'aria-required="true"' : '';
+		$invalid_attribute = $this->failed_validation ? 'aria-invalid="true"' : 'aria-invalid="false"';
+		$aria_describedby = $this->get_aria_describedby();
 		$tabindex = $this->get_tabindex();
 		$repeater_add_button = $this->field_repeater_end_text;
 		if ($repeater_add_button == "") {
@@ -199,6 +199,35 @@ class Superaddons_GFRepeater_Field extends GF_Field
 			}
 		}
 		if (isset($datas["id"]) && is_array($datas["id"])) {
+			// Check if file upload is attempted without the Pro version activated
+			if (!class_exists('Yeeaddons_Upgrade_GF_Repeater_Plugin')) {
+				$is_fileupload_attempt = false;
+				foreach ($datas["id"] as $id) {
+					foreach ($datas["fields"] as $field) {
+						if ($field == "") {
+							continue;
+						}
+						$field = str_replace('[]', '', $field);
+						$input_name = $field . "__" . $id;
+						// Standard file upload
+						if (isset($_FILES[$input_name]) && !empty($_FILES[$input_name]['name']) && (is_array($_FILES[$input_name]['name']) ? !empty(array_filter($_FILES[$input_name]['name'])) : true)) {
+							$is_fileupload_attempt = true;
+							break 2;
+						}
+						// Multi-file upload (Ajax/plupload)
+						if (strpos($field, 'gform_multifile_upload_') === 0 && !empty($_POST[$input_name])) {
+							$is_fileupload_attempt = true;
+							break 2;
+						}
+					}
+				}
+				if ($is_fileupload_attempt) {
+					$this->failed_validation = true;
+					$this->validation_message = esc_html__('File upload in repeater is only supported in the Pro version.', 'repeater-for-gravity-forms');
+					return;
+				}
+			}
+
 			foreach ($datas["id"] as $id) {
 				foreach ($datas["fields"] as $field) {
 					if ($field == "") {
@@ -211,7 +240,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 							case "name":
 								$first_name = rgpost($field . "_3__" . $id);
 								$last_name = rgpost($field . "_6__" . $id);
-								if (empty($first_name) ||  empty($last_name)) {
+								if (empty($first_name) || empty($last_name)) {
 									$failedValidation = true;
 								}
 								break;
@@ -246,7 +275,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 				}
 			}
 			if ($failedValidation) {
-				$this->failed_validation  = true;
+				$this->failed_validation = true;
 				if ($this->errorMessage) {
 					$this->validation_message = $this->errorMessage;
 				} else {
@@ -254,7 +283,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 				}
 				return;
 			} else {
-				$this->failed_validation  = false;
+				$this->failed_validation = false;
 			}
 		}
 	}
@@ -391,7 +420,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 	public function upload_file($form_id, $file)
 	{
 		$target = GFFormsModel::get_file_upload_path($form_id, $file['name']);
-		if (! $target) {
+		if (!$target) {
 			return 'FAILED (Upload folder could not be created.)';
 		}
 		if (move_uploaded_file($file['tmp_name'], $target['path'])) {
@@ -609,7 +638,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$name = $names[1];
 		foreach ($form['fields'] as $field_key => $field_value) {
 			if (is_array($field_value->inputs)) {
-				foreach ($field_value->inputs  as $children_id) {
+				foreach ($field_value->inputs as $children_id) {
 					if ($children_id["id"] == $name) {
 						if ($child) {
 							return $children_id["label"];
@@ -665,7 +694,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$name = $names[1];
 		foreach ($form['fields'] as $field_key => $field_value) {
 			if (is_array($field_value->inputs)) {
-				foreach ($field_value->inputs  as $children_id) {
+				foreach ($field_value->inputs as $children_id) {
 					if ($children_id["id"] == $name) {
 						return $field_value->type;
 					}
