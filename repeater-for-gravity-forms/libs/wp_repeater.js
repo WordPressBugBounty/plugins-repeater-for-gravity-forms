@@ -154,7 +154,15 @@
 			get_repeater_data_name();
 		});
 		gform.addFilter('gform_file_upload_markup', function (html, file, up, strings, imagesUrl, response) {
-			var repeater = $('#' + file.id).closest(".container-repeater-field").find(".gform_multifile_upload")
+			var formId = up.settings.multipart_params.form_id;
+			var fieldId = up.settings.multipart_params.field_id;
+			var container = $('#' + file.id).closest(".container-repeater-field");
+			var id_rand = container.data("id");
+			var nameAttr = 'gform_multifile_upload_' + formId + '_' + fieldId + '__' + id_rand;
+			var repeater = container.find('input[name="' + nameAttr + '"]');
+			if (repeater.length === 0) {
+				repeater = container.find(".gform_multifile_upload");
+			}
 			var val_repeater = repeater.val();
 			var link = response.data.uploaded_filename;
 			if (val_repeater == "") {
@@ -206,7 +214,10 @@
 			if (deleteButton.closest(".repeater-field-warp-item-data").length > 0) {
 				var rand_id = deleteButton.closest(".container-repeater-field").data("id");
 				var fileIndex = jQuery(deleteButton).parent().index();
-				var parent = jQuery("#field_" + formId + "_" + fieldId);
+				var parent = deleteButton.closest(".container-repeater-field").find("#field_" + formId + "_" + fieldId + "-" + rand_id);
+				if (parent.length === 0) {
+					parent = jQuery("#field_" + formId + "_" + fieldId);
+				}
 				parent.find('input[type="file"],.validation_message,#extensions_message_' + formId + '_' + fieldId).removeClass("gform_hidden");
 				parent.find(".ginput_post_image_file").show();
 				//parent.find("input[type=\"text\"]").val('');
@@ -215,7 +226,7 @@
 					var files = jQuery.secureEvalJSON(filesJson);
 					if (files) {
 						var inputName = "input_" + fieldId;
-						var full_name = deleteButton.closest(".repeater-field-warp-item-data").find('input[name="gform_multifile_upload_' + formId + '_' + fieldId + '__' + rand_id + '"]').val();
+						var full_name = deleteButton.closest(".container-repeater-field").find('input[name="gform_multifile_upload_' + formId + '_' + fieldId + '__' + rand_id + '"]').val();
 						if (full_name == "") {
 							full_name = [];
 						} else {
@@ -227,7 +238,7 @@
 						if (index1 !== -1) {
 							full_name.splice(index1, 1);
 						}
-						deleteButton.closest(".repeater-field-warp-item-data").find('input[name="gform_multifile_upload_' + formId + '_' + fieldId + '__' + rand_id + '"]').val(full_name.join(","));
+						deleteButton.closest(".container-repeater-field").find('input[name="gform_multifile_upload_' + formId + '_' + fieldId + '__' + rand_id + '"]').val(full_name.join(","));
 						deleteButton.closest(".ginput_preview").remove();
 						if ($multfile.length > 0) {
 							files[inputName].splice(fileIndex, 1);
@@ -460,12 +471,13 @@
 				}
 			}
 			//end logic
-			var j = 0;
+
 			$.each(names_upload, function (key_1, value) {
-				gfMultiFileUploader.setup("#" + value);
-				names_upload.splice(j, 1);
-				j++;
+				if ($("#" + value).length > 0) {
+					gfMultiFileUploader.setup("#" + value);
+				}
 			});
+			names_upload = [];
 			var input_mask = yeeaddons_gf_repeater_data.input_mask;
 			$.each(input_ids, function (key_1, value_1) {
 				if (value_1 in input_mask) {

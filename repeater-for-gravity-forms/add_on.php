@@ -72,6 +72,8 @@ class Superaddons_Grepeater_Field_Addon extends GFAddOn{
 		include SUPERADDONS_GF_REPEATER_PLUGIN_PATH."fields/repeater_field.php";
 		include SUPERADDONS_GF_REPEATER_PLUGIN_PATH."fields/repeater_start_field.php";
 		add_filter( 'gform_pre_validation', array( "Superaddons_GFRepeater_Field", 'remove_validation' ) );
+		add_filter( 'gform_admin_pre_render', array( 'Superaddons_GFRepeater_Field', 'remove_child_fields' ) );
+		add_filter( 'gform_form_post_get_meta', array( 'Superaddons_GFRepeater_Field', 'remove_child_fields' ) );
 		add_action( 'gform_enqueue_scripts', array($this,"add_data"),10,2 );
 	}
 	function gform_input_mask_script($script_str,$form_id,$field_id,$mask){

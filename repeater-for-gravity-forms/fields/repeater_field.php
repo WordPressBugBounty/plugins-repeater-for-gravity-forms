@@ -293,15 +293,12 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$zo = false;
 		$zo_datas = array();
 		foreach ($form["fields"] as $field) {
-			var_dump($field);
-			die();
 			$type = $field->type;
 			if ($type == "repeater_start") {
 				$zo = true;
 				continue;
 			}
 			if ($zo) {
-				var_dump($field);
 				$zo_datas[$field->id] = array("isRequired" => $field->isRequired);
 				$field->isRequired = false;
 			}
@@ -493,30 +490,51 @@ class Superaddons_GFRepeater_Field extends GF_Field
 								} else {
 									if (filter_var($vl_data, FILTER_VALIDATE_URL) === FALSE) {
 										$content = array();
-										$main_name = explode("__", $name);
-										$main_name = explode("_", $main_name[0]);
-										if (isset($main_name[4])) {
-											$main_name_id = $main_name[4];
-										} else {
-											$main_name_id = $main_name[1];
+										$parts = array_map('trim', explode(",", $vl_data));
+										$is_urls = true;
+										foreach ($parts as $part) {
+											if (empty($part) || filter_var($part, FILTER_VALIDATE_URL) === FALSE) {
+												$is_urls = false;
+												break;
+											}
 										}
-										$vl_data = explode(",", $vl_data);
-										if (isset($result[$main_name_id])) {
-											$data_uploads = json_decode($result[$main_name_id], true);
-											foreach ($vl_data as $n) {
-												$n = sanitize_file_name($n);
-												foreach ($data_uploads as $name) {
-													$name_s = explode(".", $n);
-													$name_s = $name_s[0];
-													$re = "/" . $name_s . "\.|" . $name_s . "[\d]\./";
-													if (preg_match($re, $name)) {
-														$content[] = '<a href="' . $name . '" download>' . $n . "</a> ";
-														break;
+										if ($is_urls) {
+											foreach ($parts as $part) {
+												$filename = basename($part);
+												$content[] = '<a href="' . esc_url($part) . '" download>' . esc_html($filename) . '</a>';
+											}
+											$html .= '<li>' . $lb . ': ' . implode(" | ", $content) . "</li>";
+										} else {
+											$main_name = explode("__", $name);
+											$main_name = explode("_", $main_name[0]);
+											if (isset($main_name[4])) {
+												$main_name_id = $main_name[4];
+											} else {
+												$main_name_id = $main_name[1];
+											}
+											if (isset($result[$main_name_id])) {
+												$data_uploads = json_decode($result[$main_name_id], true);
+												if (!is_array($data_uploads)) {
+													$data_uploads = explode(",", $data_uploads);
+												}
+												if (!is_array($data_uploads)) {
+													$data_uploads = array();
+												}
+												foreach ($parts as $n) {
+													$n = sanitize_file_name($n);
+													foreach ($data_uploads as $name) {
+														$name_s = explode(".", $n);
+														$name_s = $name_s[0];
+														$re = "/" . $name_s . "\.|" . $name_s . "[\d]\./";
+														if (preg_match($re, $name)) {
+															$content[] = '<a href="' . $name . '" download>' . $n . "</a> ";
+															break;
+														}
 													}
 												}
 											}
+											$html .= '<li>' . $lb . ': ' . implode(" | ", $content) . "</li>";
 										}
-										$html .= '<li>' . $lb . ': ' . implode(" | ", $content) . "</li>";
 									} else {
 										$html .= '<li>' . $lb . ': <a href="' . $vl_data . '" download>' . $vl_data . "</a></li>";
 									}
@@ -560,26 +578,41 @@ class Superaddons_GFRepeater_Field extends GF_Field
 							case "fileupload":
 								if (filter_var($vl_data, FILTER_VALIDATE_URL) === FALSE) {
 									$content = array();
-									$main_name = explode("__", $name);
-									$main_name = explode("_", $main_name[0]);
-									$main_name_id = $main_name[4];
-									$vl_data = explode(",", $vl_data);
-									if (isset($result[$main_name_id])) {
-										$data_uploads = json_decode($result[$main_name_id], true);
-										foreach ($vl_data as $n) {
-											$n = sanitize_file_name($n);
-											foreach ($data_uploads as $name) {
-												$name_s = explode(".", $n);
-												$name_s = $name_s[0];
-												$re = "/" . $name_s . "\.|" . $name_s . "[\d]\./";
-												if (preg_match($re, $name)) {
-													$content[] = '<a href="' . $name . '" download>' . $n . "</a> ";
-													break;
+									$parts = array_map('trim', explode(",", $vl_data));
+									$is_urls = true;
+									foreach ($parts as $part) {
+										if (empty($part) || filter_var($part, FILTER_VALIDATE_URL) === FALSE) {
+											$is_urls = false;
+											break;
+										}
+									}
+									if ($is_urls) {
+										foreach ($parts as $part) {
+											$filename = basename($part);
+											$content[] = '<a href="' . esc_url($part) . '" download>' . esc_html($filename) . '</a>';
+										}
+										$html .= $lb . ': ' . implode(" | ", $content) . "\n";
+									} else {
+										$main_name = explode("__", $name);
+										$main_name = explode("_", $main_name[0]);
+										$main_name_id = $main_name[4];
+										if (isset($result[$main_name_id])) {
+											$data_uploads = json_decode($result[$main_name_id], true);
+											foreach ($parts as $n) {
+												$n = sanitize_file_name($n);
+												foreach ($data_uploads as $name) {
+													$name_s = explode(".", $n);
+													$name_s = $name_s[0];
+													$re = "/" . $name_s . "\.|" . $name_s . "[\d]\./";
+													if (preg_match($re, $name)) {
+														$content[] = '<a href="' . $name . '" download>' . $n . "</a> ";
+														break;
+													}
 												}
 											}
 										}
+										$html .= $lb . ': ' . implode(" | ", $content) . "\n";
 									}
-									$html .= $lb . ': ' . implode(" | ", $content) . "\n";
 								} else {
 									$html .= $lb . ':' . $vl_data . "\n";
 								}
@@ -706,6 +739,44 @@ class Superaddons_GFRepeater_Field extends GF_Field
 			}
 		}
 		return "";
+	}
+
+	public static function remove_child_fields($form)
+	{
+		if (!is_admin()) {
+			return $form;
+		}
+
+		$page = isset($_GET['page']) ? $_GET['page'] : '';
+		$gf_page = isset($_GET['gf_page']) ? $_GET['gf_page'] : '';
+
+		$target_pages = array('gf_entries', 'gf_export');
+		$target_gf_pages = array('select_columns', 'print-entry');
+
+		if (in_array($page, $target_pages) || in_array($gf_page, $target_gf_pages)) {
+			$fields = array();
+			$zo = false;
+			foreach ($form["fields"] as $field) {
+				$type = $field->type;
+				if ($type == "repeater_start") {
+					$zo = true;
+					$fields[] = $field;
+					continue;
+				}
+				if ($type == "repeater_end") {
+					$zo = false;
+					$fields[] = $field;
+					continue;
+				}
+				if ($zo) {
+					continue;
+				}
+				$fields[] = $field;
+			}
+			$form["fields"] = $fields;
+		}
+
+		return $form;
 	}
 }
 // Register the phone field with the field framework.
