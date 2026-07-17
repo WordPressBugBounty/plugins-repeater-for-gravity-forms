@@ -84,6 +84,20 @@ class Superaddons_Grepeater_Field_Addon extends GFAddOn{
 	}
 	function add_data($form, $is_ajax ){
 		$input_mask = get_option( "yeeaddons_gf_input_mask",array());
+		if ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
+			foreach ( $form['fields'] as $field ) {
+				if ( isset( $field->type ) && $field->type === 'phone' ) {
+					$phone_format = method_exists( $field, 'get_phone_format' ) ? $field->get_phone_format() : array();
+					$mask = isset( $phone_format['mask'] ) ? $phone_format['mask'] : '';
+					if ( empty( $mask ) && ( ! isset( $field->phoneFormat ) || $field->phoneFormat === 'standard' || empty( $field->phoneFormat ) ) ) {
+						$mask = '(999) 999-9999';
+					}
+					if ( ! empty( $mask ) ) {
+						$input_mask["input_" . $form['id'] . "_" . $field->id] = $mask;
+					}
+				}
+			}
+		}
 		wp_enqueue_script( 'gf_repeater', SUPERADDONS_GF_REPEATER_PLUGIN_URL."libs/wp_repeater.js", array('jquery',"gform_masked_input"),time());
 		$check_pro = get_option( '_redmuber_item_1540'); 
 		wp_localize_script("gf_repeater","yeeaddons_gf_repeater_data",array("input_mask"=>($input_mask),"pro"=>$check_pro));

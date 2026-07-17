@@ -494,7 +494,7 @@
 		}
 		function yeeaddons_change_id_logic(value, key) {
 			var field_rules_inner = [];
-			if (value && Array.isArray(value.field.rules)) {   // added this line to fix js issue in add more to autofill multiple data
+			if (value && value.field && Array.isArray(value.field.rules)) {   // added this line to fix js issue in add more to autofill multiple data
 				$.each(value.field.rules, function (key_2, value_2) {
 					if (value_2.fieldId.search("-") < 0) {
 						var field_id_1 = value_2.fieldId + "-" + key;
