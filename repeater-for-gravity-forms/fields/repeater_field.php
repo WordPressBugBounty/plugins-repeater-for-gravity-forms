@@ -372,7 +372,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 	{
 		$this->lead_id = $lead_id;
 		$datas = json_decode($value, true);
-		//var_dump($value);
+
 		$values = array();
 		$form_id = $this->formId;
 		$get_form = GFFormsModel::get_form_meta_by_id($form_id);
@@ -400,14 +400,75 @@ class Superaddons_GFRepeater_Field extends GF_Field
 					$datas_step[$getInputName] = $getInputData;
 				} else {
 					$getInputName = $field . "__" . $id_rand;
-					if (isset($_FILES[$getInputName])) {
-						$datas_step[$getInputName] = apply_filters("yeeaddons_gf_repeater_file", "Upgrade to pro version", $form_id, $_FILES[$getInputName]);
-					} else if (isset($_POST[$getInputName])) {
-						$datas_step[$getInputName] = rgpost(str_replace('.', '_', strval($getInputName)));
-					} else {
-						$getInputData = rgpost(str_replace('.', '_', strval($getInputName)));
-						$datas_step[$getInputName] = $getInputData;
+					$saved_url = '';
+
+					// 1. Check transient saved across multi-step pages by gform_unique_id or form_id
+					$unique_id = rgpost('gform_unique_id');
+					$transient_keys = array();
+					if (!empty($unique_id)) {
+						$transient_keys[] = 'gf_repeater_files_' . $unique_id;
 					}
+					$transient_keys[] = 'gf_repeater_files_' . $form_id;
+					$transient_keys[] = 'gf_repeater_files_1';
+
+					foreach ($transient_keys as $t_key) {
+						$transient_files = get_transient($t_key);
+						if (is_array($transient_files)) {
+							if (!empty($transient_files[$getInputName])) {
+								$saved_url = $transient_files[$getInputName];
+								break;
+							}
+							// Also check alternative key name format
+							foreach ($transient_files as $tk => $tv) {
+								if (strpos($tk, '__' . $id_rand) !== false && !empty($tv)) {
+									$clean_f = str_replace('gform_multifile_upload_' . $form_id . '_', '', $field);
+									$clean_f = str_replace('input_', '', $clean_f);
+									if (strpos($tk, '_' . $clean_f . '__') !== false || strpos($tk, 'input_' . $clean_f . '__') !== false) {
+										$saved_url = $tv;
+										break 2;
+									}
+								}
+							}
+						}
+					}
+
+
+					// 2. Check if $_POST contains a direct URL
+					if (empty($saved_url)) {
+						$post_val = rgpost(str_replace('.', '_', strval($getInputName)));
+						if (!empty($post_val) && strpos($post_val, 'http') === 0) {
+							$saved_url = $post_val;
+						}
+					}
+
+					// 3. Check gform_uploaded_files (GF native temp file store)
+					if (empty($saved_url)) {
+						$uploaded_files_json = rgpost('gform_uploaded_files');
+						if (!empty($uploaded_files_json)) {
+							$uploaded_files = json_decode(stripslashes($uploaded_files_json), true);
+							if (is_array($uploaded_files) && isset($uploaded_files[$getInputName])) {
+								$file_info = $uploaded_files[$getInputName];
+								if (is_string($file_info) && strpos($file_info, 'http') === 0) {
+									$saved_url = $file_info;
+								}
+							}
+						}
+					}
+
+					// 4. Check $_FILES if uploaded on the current submit step
+					if (empty($saved_url) && isset($_FILES[$getInputName]) && !empty($_FILES[$getInputName]['name']) && (is_array($_FILES[$getInputName]['name']) ? !empty(array_filter($_FILES[$getInputName]['name'])) : ($_FILES[$getInputName]['error'] === UPLOAD_ERR_OK))) {
+						$res = apply_filters("yeeaddons_gf_repeater_file", "", $form_id, $_FILES[$getInputName]);
+						if ($res && $res !== "Upgrade to pro version") {
+							$saved_url = $res;
+						}
+					}
+
+					// 5. Fallback to $_POST value if available
+					if (empty($saved_url)) {
+						$saved_url = rgpost(str_replace('.', '_', strval($getInputName)));
+					}
+
+					$datas_step[$getInputName] = $saved_url;
 				}
 			}
 			$values[$id_rand] = $datas_step;
@@ -459,6 +520,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 			$mylink = $wpdb->get_row("SELECT id FROM $table ORDER BY id DESC");
 			$result = GFAPI::get_entry($mylink->id);
 		}
+		//var_dump($dataArray);
 		if ($format === 'html') {
 			$html = '<ol>';
 			foreach ($dataArray as $step_datas) {
@@ -483,65 +545,84 @@ class Superaddons_GFRepeater_Field extends GF_Field
 						}
 					} else {
 						$vl_data = $vl;
+
 						switch ($type) {
 							case "fileupload":
-								if ($vl_data == "Upgrade to pro version") {
-									$html .= '<li>' . $lb . ": " . $vl_data . "</li>";
-								} else {
-									if (filter_var($vl_data, FILTER_VALIDATE_URL) === FALSE) {
-										$content = array();
-										$parts = array_map('trim', explode(",", $vl_data));
-										$is_urls = true;
-										foreach ($parts as $part) {
-											if (empty($part) || filter_var($part, FILTER_VALIDATE_URL) === FALSE) {
-												$is_urls = false;
+								if ($vl_data === "Upgrade to pro version") {
+									$html .= '<li>' . esc_html($lb) . ": " . esc_html($vl_data) . "</li>";
+									break;
+								}
+
+								// Hàm helper nhỏ để encode Unicode URL an toàn
+								$encode_url = function ($url) {
+									return preg_replace_callback('/[^\x20-\x7E]/u', function ($match) {
+										return rawurlencode($match[0]);
+									}, trim($url));
+								};
+
+								// Hàm kiểm tra URL hợp lệ (chấp nhận cả ký tự Unicode)
+								$is_valid_url = function ($url) use ($encode_url) {
+									if (empty($url))
+										return false;
+									$encoded = $encode_url($url);
+									return filter_var($encoded, FILTER_VALIDATE_URL) !== false;
+								};
+
+								// Tách chuỗi theo dấu phẩy phòng trường hợp có nhiều file
+								$parts = array_filter(array_map('trim', explode(",", $vl_data)));
+								$content = array();
+
+								// TRƯỜNG HỢP 1: Tất cả các phần tử đều là URL hợp lệ
+								$all_are_urls = !empty($parts);
+								foreach ($parts as $part) {
+									if (!$is_valid_url($part)) {
+										$all_are_urls = false;
+										break;
+									}
+								}
+
+								if ($all_are_urls) {
+									foreach ($parts as $part) {
+										$filename = basename($part);
+										// Dùng esc_url() của WP để tự động encode và bảo mật output
+										$content[] = '<a href="' . esc_url($part) . '" download>' . esc_html($filename) . '</a>';
+									}
+									$html .= '<li>' . esc_html($lb) . ': ' . implode(" | ", $content) . "</li>";
+									break;
+								}
+
+								// TRƯỜNG HỢP 2: Chuỗi chứa tên file hoặc URL không hợp lệ -> Tìm trong $result
+								$main_name = explode("__", $name);
+								$main_name = explode("_", $main_name[0]);
+								$main_name_id = isset($main_name[4]) ? $main_name[4] : (isset($main_name[1]) ? $main_name[1] : null);
+
+								if ($main_name_id && isset($result[$main_name_id])) {
+									$raw_uploads = $result[$main_name_id];
+									$data_uploads = is_array($raw_uploads) ? $raw_uploads : json_decode($raw_uploads, true);
+
+									if (!is_array($data_uploads)) {
+										$data_uploads = array_filter(array_map('trim', explode(",", (string) $raw_uploads)));
+									}
+
+									foreach ($parts as $n) {
+										$clean_n = sanitize_file_name($n);
+										$name_s = preg_quote(pathinfo($clean_n, PATHINFO_FILENAME), '/');
+
+										foreach ($data_uploads as $upload_file) {
+											// Regex khớp chính xác tên file gốc hoặc tên file có đánh số thứ tự
+											if (preg_match('/' . $name_s . '(\d+)?\./i', $upload_file)) {
+												$content[] = '<a href="' . esc_url($upload_file) . '" download>' . esc_html($clean_n) . '</a>';
 												break;
 											}
 										}
-										if ($is_urls) {
-											foreach ($parts as $part) {
-												$filename = basename($part);
-												$content[] = '<a href="' . esc_url($part) . '" download>' . esc_html($filename) . '</a>';
-											}
-											$html .= '<li>' . $lb . ': ' . implode(" | ", $content) . "</li>";
-										} else {
-											$main_name = explode("__", $name);
-											$main_name = explode("_", $main_name[0]);
-											if (isset($main_name[4])) {
-												$main_name_id = $main_name[4];
-											} else {
-												$main_name_id = $main_name[1];
-											}
-											if (isset($result[$main_name_id])) {
-												$data_uploads = json_decode($result[$main_name_id], true);
-												if (!is_array($data_uploads)) {
-													$data_uploads = explode(",", $data_uploads);
-												}
-												if (!is_array($data_uploads)) {
-													$data_uploads = array();
-												}
-												foreach ($parts as $n) {
-													$n = sanitize_file_name($n);
-													foreach ($data_uploads as $name) {
-														$name_s = explode(".", $n);
-														$name_s = $name_s[0];
-														$re = "/" . $name_s . "\.|" . $name_s . "[\d]\./";
-														if (preg_match($re, $name)) {
-															$content[] = '<a href="' . $name . '" download>' . $n . "</a> ";
-															break;
-														}
-													}
-												}
-											}
-											$html .= '<li>' . $lb . ': ' . implode(" | ", $content) . "</li>";
-										}
-									} else {
-										$html .= '<li>' . $lb . ': <a href="' . $vl_data . '" download>' . $vl_data . "</a></li>";
 									}
 								}
+
+								$html .= '<li>' . esc_html($lb) . ': ' . (!empty($content) ? implode(" | ", $content) : esc_html($vl_data)) . "</li>";
 								break;
+
 							default:
-								$html .= '<li>' . $lb . ": " . $vl_data . "</li>";
+								$html .= '<li>' . esc_html($lb) . ": " . esc_html($vl_data) . "</li>";
 								break;
 						}
 					}
