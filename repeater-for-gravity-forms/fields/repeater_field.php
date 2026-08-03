@@ -527,13 +527,13 @@ class Superaddons_GFRepeater_Field extends GF_Field
 				$html .= '<li><ul>';
 				foreach ($step_datas as $name => $vl) {
 					$type = $this->get_type($form, $name, $form_id);
-					$lb = $this->get_field_label($form, $name, $type, false, $form_id);
+					$lb = $this->get_custom_field_label($form, $name, $type, false, $form_id);
 					if (is_array($vl)) {
 						switch ($type) {
 							case "address":
 								$vl_data = "";
 								foreach ($vl as $k => $v) {
-									$child_lb = $this->get_field_label($form, "input_" . $k, $type, true);
+									$child_lb = $this->get_custom_field_label($form, "input_" . $k, $type, true);
 									$vl_data .= $child_lb . ": " . $v . "<br>";
 								}
 								$html .= '<li>' . $lb . ": <br>" . $vl_data . "</li>";
@@ -637,13 +637,13 @@ class Superaddons_GFRepeater_Field extends GF_Field
 			foreach ($dataArray as $step_datas) {
 				foreach ($step_datas as $name => $vl) {
 					$type = $this->get_type($form, $name, $form_id);
-					$lb = $this->get_field_label($form, $name, $type, false, $form_id);
+					$lb = $this->get_custom_field_label($form, $name, $type, false, $form_id);
 					if (is_array($vl)) {
 						switch ($type) {
 							case "address":
 								$vl_data = "";
 								foreach ($vl as $k => $v) {
-									$child_lb = $this->get_field_label($form, "input_" . $k, $type, true);
+									$child_lb = $this->get_custom_field_label($form, "input_" . $k, $type, true);
 									$vl_data .= $child_lb . ": " . $v . "\n";
 								}
 								$html .= $lb . " : " . $vl_data . "\n";
@@ -737,7 +737,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 			return $return;
 		}
 	}
-	function get_field_label($form, $name = '', $type = '', $child = false, $form_id = '')
+	function get_custom_field_label($form, $name = '', $type = '', $child = false, $form_id = '')
 	{
 		if (is_array($form)) {
 			if (!array_key_exists('fields', $form)) {
