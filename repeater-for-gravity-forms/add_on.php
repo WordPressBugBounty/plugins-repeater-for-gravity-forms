@@ -86,6 +86,11 @@ class Superaddons_Grepeater_Field_Addon extends GFAddOn{
 		$input_mask = get_option( "yeeaddons_gf_input_mask",array());
 		if ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
 			foreach ( $form['fields'] as $field ) {
+				// 1. Các trường Text / Field thường tick "Input Mask"
+				if ( ! empty( $field->inputMask ) && ! empty( $field->inputMaskValue ) ) {
+					$input_mask["input_" . $form['id'] . "_" . $field->id] = (string) $field->inputMaskValue;
+				}
+				// 2. Các trường Phone
 				if ( isset( $field->type ) && $field->type === 'phone' ) {
 					$phone_format = method_exists( $field, 'get_phone_format' ) ? $field->get_phone_format() : array();
 					$mask = isset( $phone_format['mask'] ) ? $phone_format['mask'] : '';
@@ -93,14 +98,17 @@ class Superaddons_Grepeater_Field_Addon extends GFAddOn{
 						$mask = '(999) 999-9999';
 					}
 					if ( ! empty( $mask ) ) {
-						$input_mask["input_" . $form['id'] . "_" . $field->id] = $mask;
+						$input_mask["input_" . $form['id'] . "_" . $field->id] = (string) $mask;
 					}
 				}
 			}
 		}
-		wp_enqueue_script( 'gf_repeater', SUPERADDONS_GF_REPEATER_PLUGIN_URL."libs/wp_repeater.js", array('jquery',"gform_masked_input"),time());
-		$check_pro = get_option( '_redmuber_item_1540'); 
-		wp_localize_script("gf_repeater","yeeaddons_gf_repeater_data",array("input_mask"=>($input_mask),"pro"=>$check_pro));
+		if ( ! wp_script_is( 'gform_masked_input', 'registered' ) ) {
+			wp_register_script( 'gform_masked_input', SUPERADDONS_GF_REPEATER_PLUGIN_URL . 'libs/jquery.maskedinput.min.js', array( 'jquery' ), '1.3.1', true );
+		}
+		wp_enqueue_script( 'gf_repeater', SUPERADDONS_GF_REPEATER_PLUGIN_URL . "libs/wp_repeater.js", array( 'jquery', 'gform_masked_input' ), time() );
+		$check_pro = get_option( '_redmuber_item_1540' ); 
+		wp_localize_script( "gf_repeater", "yeeaddons_gf_repeater_data", array( "input_mask" => ( $input_mask ), "pro" => $check_pro ) );
 	}
 	public function styles() {
 		$styles = array(

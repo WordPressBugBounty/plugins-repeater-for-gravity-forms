@@ -2,8 +2,8 @@
 Contributors: addonsorg
 Tags: Gravity Forms, Gravity Forms fields, Repeater, Repeater form, Repeater field
 Requires at least: 2.0
-Tested up to: 7.0
-Stable tag: 3.0.0
+Tested up to: 7.1
+Stable tag: 3.0.1
 Requires PHP: 5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -59,6 +59,9 @@ Have you ever wanted to let your users submit multiple entries of the same field
 3. Addmin builder
 
 == Changelog ==
+= 3.0.1 =
+- Fixed: Input Mask
+
 = 3.0.0 =
 - Fixed: PHP Fatal error:  Declaration of Superaddons_GFRepeater_Field::get_field_label
 
