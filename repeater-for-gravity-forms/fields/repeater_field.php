@@ -436,7 +436,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 					// 2. Check if $_POST contains a direct URL
 					if (empty($saved_url)) {
 						$post_val = rgpost(str_replace('.', '_', strval($getInputName)));
-						if (!empty($post_val) && strpos($post_val, 'http') === 0) {
+						if (!empty($post_val) && is_string($post_val) && strpos($post_val, 'http') === 0) {
 							$saved_url = $post_val;
 						}
 					}
