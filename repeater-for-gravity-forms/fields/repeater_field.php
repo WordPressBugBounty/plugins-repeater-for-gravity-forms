@@ -180,6 +180,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 					$field->repeater_validate = array("isRequired" => $field->isRequired);
 				}
 				$field->isRequired = false;
+				$field->validateState = false;
 			}
 		}
 		return $form;
