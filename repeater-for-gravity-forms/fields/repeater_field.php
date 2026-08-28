@@ -379,9 +379,14 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$get_form = GFFormsModel::get_form_meta_by_id($form_id);
 		$form = $get_form[0];
 		$fields = array();
-		foreach ($datas["fields"] as $f) {
-			$datas_f = explode(".", $f);
-			$fields[] = $datas_f[0];
+		if (isset($datas["fields"]) && is_array($datas["fields"])) {
+			foreach ($datas["fields"] as $f) {
+				if (!is_string($f) || empty($f)) {
+					continue;
+				}
+				$datas_f = explode(".", $f);
+				$fields[] = $datas_f[0];
+			}
 		}
 		$fields = array_unique($fields);
 		foreach ($datas["id"] as $id_rand) {
@@ -750,7 +755,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$name = str_replace("gform_multifile_upload_" . $form_id, "input", $name);
 		$names = explode("__", $name);
 		$names = explode("_", $names[0]);
-		$name = $names[1];
+		$name = isset($names[1]) ? $names[1] : $names[0];
 		foreach ($form['fields'] as $field_key => $field_value) {
 			if (is_array($field_value->inputs)) {
 				foreach ($field_value->inputs as $children_id) {
@@ -781,7 +786,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		}
 		$names = explode("__", $name);
 		$names = explode("_", $names[0]);
-		$name = $names[1];
+		$name = isset($names[1]) ? $names[1] : $names[0];
 		foreach ($form['fields'] as $field_key => $field_value) {
 			if ($field_value->id == $name) {
 				if ($field_value->type == "date") {
@@ -806,7 +811,7 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$name = str_replace("gform_multifile_upload_" . $form_id, "input", $name);
 		$names = explode("__", $name);
 		$names = explode("_", $names[0]);
-		$name = $names[1];
+		$name = isset($names[1]) ? $names[1] : $names[0];
 		foreach ($form['fields'] as $field_key => $field_value) {
 			if (is_array($field_value->inputs)) {
 				foreach ($field_value->inputs as $children_id) {
