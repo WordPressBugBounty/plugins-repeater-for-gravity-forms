@@ -373,6 +373,9 @@ class Superaddons_GFRepeater_Field extends GF_Field
 	{
 		$this->lead_id = $lead_id;
 		$datas = json_decode($value, true);
+		if (!is_array($datas) || !isset($datas["id"]) || !is_array($datas["id"])) {
+			return maybe_serialize(array());
+		}
 
 		$values = array();
 		$form_id = $this->formId;
@@ -399,7 +402,15 @@ class Superaddons_GFRepeater_Field extends GF_Field
 					foreach ($inputs as $child_input) {
 						$getInputName = "input_" . $child_input["id"] . "__" . $id_rand;
 						$vl = rgpost(str_replace('.', '_', strval($getInputName)));
-						if ($vl != "") {
+						if ($vl !== "" && $vl !== false && $vl !== null) {
+							$child_field_type = $this->get_type($form, "input_" . $child_input["id"], $form_id);
+							if (is_string($vl)) {
+								if ($child_field_type === 'textarea') {
+									$vl = sanitize_textarea_field($vl);
+								} else {
+									$vl = sanitize_text_field($vl);
+								}
+							}
 							$getInputData[$child_input["id"]] = $vl;
 						}
 					}
@@ -474,6 +485,18 @@ class Superaddons_GFRepeater_Field extends GF_Field
 						$saved_url = rgpost(str_replace('.', '_', strval($getInputName)));
 					}
 
+					// Sanitize theo kiểu trường trước khi lưu vào DB
+					$field_type = $this->get_type($form, $field, $form_id);
+					if (is_string($saved_url)) {
+						if ($field_type === 'textarea') {
+							$saved_url = sanitize_textarea_field($saved_url);
+						} elseif ($field_type === 'fileupload' || filter_var($saved_url, FILTER_VALIDATE_URL) !== false) {
+							$saved_url = esc_url_raw($saved_url);
+						} else {
+							$saved_url = sanitize_text_field($saved_url);
+						}
+					}
+
 					$datas_step[$getInputName] = $saved_url;
 				}
 			}
@@ -520,13 +543,18 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		$get_form = GFFormsModel::get_form_meta_by_id($form_id);
 		$form = $get_form[0];
 		if (isset($_GET['lid'])) {
-			$result = GFAPI::get_entry($_GET['lid']);
+			$result = GFAPI::get_entry(absint($_GET['lid']));
 		} else {
 			$table = $wpdb->prefix . "gf_entry";
 			$mylink = $wpdb->get_row("SELECT id FROM $table ORDER BY id DESC");
-			$result = GFAPI::get_entry($mylink->id);
+			$result = ($mylink && isset($mylink->id)) ? GFAPI::get_entry($mylink->id) : array();
 		}
-		//var_dump($dataArray);
+		if (!is_array($result) || is_wp_error($result)) {
+			$result = array();
+		}
+		if (!is_array($dataArray) || empty($dataArray)) {
+			return '';
+		}
 		if ($format === 'html') {
 			$html = '<ol>';
 			foreach ($dataArray as $step_datas) {
@@ -540,17 +568,57 @@ class Superaddons_GFRepeater_Field extends GF_Field
 								$vl_data = "";
 								foreach ($vl as $k => $v) {
 									$child_lb = $this->get_custom_field_label($form, "input_" . $k, $type, true);
-									$vl_data .= $child_lb . ": " . $v . "<br>";
+									$vl_data .= esc_html($child_lb) . ": " . esc_html($v) . "<br>";
 								}
-								$html .= '<li>' . $lb . ": <br>" . $vl_data . "</li>";
+								$html .= '<li>' . esc_html($lb) . ": <br>" . $vl_data . "</li>";
 								break;
 							default:
-								$vl_data = implode(", ", $vl);
-								$html .= '<li>' . $lb . ": " . $vl_data . "</li>";
+								$vl_data = implode(", ", array_map('esc_html', $vl));
+								$html .= '<li>' . esc_html($lb) . ": " . $vl_data . "</li>";
 								break;
 						}
 					} else {
 						$vl_data = $vl;
+
+						// Helper functions kiểm tra và render file/hình ảnh
+						$encode_url = function ($url) {
+							return preg_replace_callback('/[^\x20-\x7E]/u', function ($match) {
+								return rawurlencode($match[0]);
+							}, trim($url));
+						};
+
+						$is_valid_url = function ($url) use ($encode_url) {
+							if (empty($url))
+								return false;
+							$encoded = $encode_url($url);
+							return filter_var($encoded, FILTER_VALIDATE_URL) !== false;
+						};
+
+						$is_image_url = function ($url) {
+							if (!is_string($url) || empty($url))
+								return false;
+							$clean_path = parse_url($url, PHP_URL_PATH);
+							if (!$clean_path) {
+								$clean_path = $url;
+							}
+							$ext = strtolower(pathinfo($clean_path, PATHINFO_EXTENSION));
+							return in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif', 'heic'), true);
+						};
+
+						$render_file_or_image = function ($file_url, $display_name = '') use ($is_image_url) {
+							$file_url = trim($file_url);
+							if (empty($file_url))
+								return '';
+							$filename = !empty($display_name) ? $display_name : basename($file_url);
+
+							if ($is_image_url($file_url)) {
+								return '<a href="' . esc_url($file_url) . '" target="_blank" class="repeater-image-preview" style="display:inline-block; margin: 4px 6px 4px 0;">'
+									. '<img src="' . esc_url($file_url) . '" alt="' . esc_attr($filename) . '" style="max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 4px; border: 1px solid #e2e8f0; display: inline-block; vertical-align: middle;" />'
+									. '</a>';
+							} else {
+								return '<a href="' . esc_url($file_url) . '" download>' . esc_html($filename) . '</a>';
+							}
+						};
 
 						switch ($type) {
 							case "fileupload":
@@ -558,21 +626,6 @@ class Superaddons_GFRepeater_Field extends GF_Field
 									$html .= '<li>' . esc_html($lb) . ": " . esc_html($vl_data) . "</li>";
 									break;
 								}
-
-								// Hàm helper nhỏ để encode Unicode URL an toàn
-								$encode_url = function ($url) {
-									return preg_replace_callback('/[^\x20-\x7E]/u', function ($match) {
-										return rawurlencode($match[0]);
-									}, trim($url));
-								};
-
-								// Hàm kiểm tra URL hợp lệ (chấp nhận cả ký tự Unicode)
-								$is_valid_url = function ($url) use ($encode_url) {
-									if (empty($url))
-										return false;
-									$encoded = $encode_url($url);
-									return filter_var($encoded, FILTER_VALIDATE_URL) !== false;
-								};
 
 								// Tách chuỗi theo dấu phẩy phòng trường hợp có nhiều file
 								$parts = array_filter(array_map('trim', explode(",", $vl_data)));
@@ -590,10 +643,9 @@ class Superaddons_GFRepeater_Field extends GF_Field
 								if ($all_are_urls) {
 									foreach ($parts as $part) {
 										$filename = basename($part);
-										// Dùng esc_url() của WP để tự động encode và bảo mật output
-										$content[] = '<a href="' . esc_url($part) . '" download>' . esc_html($filename) . '</a>';
+										$content[] = $render_file_or_image($part, $filename);
 									}
-									$html .= '<li>' . esc_html($lb) . ': ' . implode(" | ", $content) . "</li>";
+									$html .= '<li>' . esc_html($lb) . ': ' . implode(" ", $content) . "</li>";
 									break;
 								}
 
@@ -617,103 +669,119 @@ class Superaddons_GFRepeater_Field extends GF_Field
 										foreach ($data_uploads as $upload_file) {
 											// Regex khớp chính xác tên file gốc hoặc tên file có đánh số thứ tự
 											if (preg_match('/' . $name_s . '(\d+)?\./i', $upload_file)) {
-												$content[] = '<a href="' . esc_url($upload_file) . '" download>' . esc_html($clean_n) . '</a>';
+												$content[] = $render_file_or_image($upload_file, $clean_n);
 												break;
 											}
 										}
 									}
 								}
 
-								$html .= '<li>' . esc_html($lb) . ': ' . (!empty($content) ? implode(" | ", $content) : esc_html($vl_data)) . "</li>";
+								$html .= '<li>' . esc_html($lb) . ': ' . (!empty($content) ? implode(" ", $content) : esc_html($vl_data)) . "</li>";
 								break;
 
 							default:
-								$html .= '<li>' . esc_html($lb) . ": " . esc_html($vl_data) . "</li>";
+								if (is_string($vl_data) && $is_valid_url($vl_data) && $is_image_url($vl_data)) {
+									$html .= '<li>' . esc_html($lb) . ': ' . $render_file_or_image($vl_data) . "</li>";
+								} else {
+									$html .= '<li>' . esc_html($lb) . ": " . esc_html($vl_data) . "</li>";
+								}
 								break;
 						}
 					}
 				}
 				$html .= '</ul></li>';
 			}
-			$html .= '<ol>';
+			$html .= '</ol>';
 			$html = apply_filters("yeeadons_gravity_forms_repeater_html", $html, $dataArray, $form);
 			return $html;
 		} else {
-			$html = '';
+			$text = '';
 			foreach ($dataArray as $step_datas) {
+				if (!is_array($step_datas)) {
+					continue;
+				}
 				foreach ($step_datas as $name => $vl) {
 					$type = $this->get_type($form, $name, $form_id);
 					$lb = $this->get_custom_field_label($form, $name, $type, false, $form_id);
+					$lb = esc_html($lb);
+
 					if (is_array($vl)) {
 						switch ($type) {
 							case "address":
 								$vl_data = "";
 								foreach ($vl as $k => $v) {
 									$child_lb = $this->get_custom_field_label($form, "input_" . $k, $type, true);
-									$vl_data .= $child_lb . ": " . $v . "\n";
+									$vl_data .= esc_html($child_lb) . ": " . esc_html($v) . "\n";
 								}
-								$html .= $lb . " : " . $vl_data . "\n";
+								$text .= $lb . " : \n" . $vl_data;
 								break;
 							default:
-								$vl_data = implode(", ", $vl);
-								$html .= $lb . ": " . $vl_data . "\n";
+								$vl_escaped = array_map('esc_html', $vl);
+								$text .= $lb . ": " . implode(", ", $vl_escaped) . "\n";
 								break;
 						}
 					} else {
 						$vl_data = $vl;
 						switch ($type) {
 							case "fileupload":
-								if (filter_var($vl_data, FILTER_VALIDATE_URL) === FALSE) {
-									$content = array();
-									$parts = array_map('trim', explode(",", $vl_data));
-									$is_urls = true;
-									foreach ($parts as $part) {
-										if (empty($part) || filter_var($part, FILTER_VALIDATE_URL) === FALSE) {
-											$is_urls = false;
-											break;
-										}
+								if ($vl_data === "Upgrade to pro version") {
+									$text .= $lb . ": " . esc_html($vl_data) . "\n";
+									break;
+								}
+								$parts = array_filter(array_map('trim', explode(",", $vl_data)));
+								$content = array();
+
+								$all_are_urls = !empty($parts);
+								foreach ($parts as $part) {
+									if (filter_var($part, FILTER_VALIDATE_URL) === false) {
+										$all_are_urls = false;
+										break;
 									}
-									if ($is_urls) {
-										foreach ($parts as $part) {
-											$filename = basename($part);
-											$content[] = '<a href="' . esc_url($part) . '" download>' . esc_html($filename) . '</a>';
+								}
+
+								if ($all_are_urls) {
+									foreach ($parts as $part) {
+										$filename = basename($part);
+										$content[] = esc_html($filename) . ' (' . esc_url($part) . ')';
+									}
+									$text .= $lb . ': ' . implode(", ", $content) . "\n";
+								} else {
+									$main_name = explode("__", $name);
+									$main_name = explode("_", $main_name[0]);
+									$main_name_id = isset($main_name[4]) ? $main_name[4] : (isset($main_name[1]) ? $main_name[1] : null);
+
+									if ($main_name_id && isset($result[$main_name_id])) {
+										$raw_uploads = $result[$main_name_id];
+										$data_uploads = is_array($raw_uploads) ? $raw_uploads : json_decode($raw_uploads, true);
+										if (!is_array($data_uploads)) {
+											$data_uploads = array_filter(array_map('trim', explode(",", (string)$raw_uploads)));
 										}
-										$html .= $lb . ': ' . implode(" | ", $content) . "\n";
-									} else {
-										$main_name = explode("__", $name);
-										$main_name = explode("_", $main_name[0]);
-										$main_name_id = $main_name[4];
-										if (isset($result[$main_name_id])) {
-											$data_uploads = json_decode($result[$main_name_id], true);
-											foreach ($parts as $n) {
-												$n = sanitize_file_name($n);
-												foreach ($data_uploads as $name) {
-													$name_s = explode(".", $n);
-													$name_s = $name_s[0];
-													$re = "/" . $name_s . "\.|" . $name_s . "[\d]\./";
-													if (preg_match($re, $name)) {
-														$content[] = '<a href="' . $name . '" download>' . $n . "</a> ";
-														break;
-													}
+
+										foreach ($parts as $n) {
+											$clean_n = sanitize_file_name($n);
+											$name_s = preg_quote(pathinfo($clean_n, PATHINFO_FILENAME), '/');
+											foreach ($data_uploads as $upload_file) {
+												if (preg_match('/' . $name_s . '(\d+)?\./i', $upload_file)) {
+													$content[] = esc_html($clean_n) . ' (' . esc_url($upload_file) . ')';
+													break;
 												}
 											}
 										}
-										$html .= $lb . ': ' . implode(" | ", $content) . "\n";
 									}
-								} else {
-									$html .= $lb . ':' . $vl_data . "\n";
+									$text .= $lb . ': ' . (!empty($content) ? implode(", ", $content) : esc_html($vl_data)) . "\n";
 								}
 								break;
+
 							default:
-								$html .= $lb . ": " . $vl_data . "\n";
+								$text .= $lb . ": " . esc_html($vl_data) . "\n";
 								break;
 						}
 					}
 				}
-				$html .= "\n";
+				$text .= "\n";
 			}
-			$html = apply_filters("yeeadons_gravity_forms_repeater_text", $html, $dataArray, $form);
-			return $html;
+			$text = apply_filters("yeeadons_gravity_forms_repeater_text", $text, $dataArray, $form);
+			return $text;
 		}
 	}
 	public function get_value_export($entry, $input_id = '', $use_text = false, $is_csv = false)
