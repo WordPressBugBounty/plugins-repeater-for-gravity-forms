@@ -172,6 +172,15 @@
 			}
 			return html.replace("onclick", "data-onclick");;
 		});
+		if (window.gform && typeof window.gform.addFilter === 'function') {
+			window.gform.addFilter('gform_datepicker_options_pre_init', function (options, formId, fieldId) {
+				if (typeof fieldId === 'string' && fieldId.indexOf('-') > -1) {
+					var originalFieldId = fieldId.split('-')[0];
+					return window.gform.applyFilters('gform_datepicker_options_pre_init', options, formId, originalFieldId);
+				}
+				return options;
+			}, 9);
+		}
 		var repeater_fields_htmls = {};
 		//condition out repeater out
 		gform.addAction('gform_post_conditional_logic_field_action1', function (formId, action, targetId, defaultValues, isInit) {
@@ -343,6 +352,28 @@
 					$(this).attr("name", name + "__" + id_rand);
 				}
 				$(this).attr("id", id + "-" + id_rand);
+				if ($(this).hasClass('gform-datepicker') || $(this).hasClass('datepicker')) {
+					$(this).removeAttr('data-initialized').removeData('initialized').removeClass('hasDatepicker');
+					if (this.dataset) {
+						delete this.dataset.initialized;
+						delete this.dataset.toggleClickedBeforeInit;
+					}
+					var $toggleBtn = $(this).siblings('.gform-datepicker-toggle');
+					if (!$toggleBtn.length) {
+						$toggleBtn = $(this).closest('.ginput_container_date').find('.gform-datepicker-toggle');
+					}
+					if ($toggleBtn.length) {
+						$toggleBtn.attr('id', 'datepicker_toggle_' + id + '-' + id_rand);
+						$toggleBtn.attr('aria-controls', id + '-' + id_rand);
+					}
+					var $kbd = $(this).siblings('#keyboardHint_' + id);
+					if (!$kbd.length) {
+						$kbd = $(this).closest('.ginput_container_date').find('#keyboardHint_' + id);
+					}
+					if ($kbd.length) {
+						$kbd.attr('id', 'keyboardHint_' + id + '-' + id_rand);
+					}
+				}
 				var value_check = localStorage.getItem(id + "-" + id_rand);
 				if (type == "checkbox") {
 					$(this).closest("div").find("label").attr("for", id + "-" + id_rand);
@@ -488,9 +519,42 @@
 			input_ids = [];
 			$('.gform-datepicker').each(function () {
 				var $element = $(this);
-				initSingleDatepicker($element);
-				$element.addClass('initialized');
+				if (typeof $.fn.datepicker === 'function') {
+					// Legacy GF < 3.0: jQuery UI datepicker available
+					if (!$element.hasClass('hasDatepicker')) {
+						initSingleDatepicker($element);
+						$element.addClass('initialized');
+					}
+				}
 			});
+			// GF 3.0+: Re-trigger datepicker initialization for the form
+			// so GF's theme script loads the datepicker chunk and sets up delegation
+			reinitGF3Datepicker(button);
+		}
+		/**
+		 * Re-trigger GF 3.0 datepicker initialization.
+		 * GF 3.0 uses lazy-loading: the datepicker chunk is only loaded when
+		 * gform/post_render fires and .gform-datepicker elements exist in the DOM.
+		 * Since the repeater removes original fields before GF checks for them,
+		 * we need to re-dispatch the event after creating new rows.
+		 */
+		var _gf3DatepickerTriggered = {};
+		function reinitGF3Datepicker(el) {
+			if (typeof $.fn.datepicker === 'function') {
+				return; // Legacy jQuery UI datepicker is available, no need for GF 3.0 re-init
+			}
+			var $wrapper = el.closest('.gform_wrapper');
+			if (!$wrapper.length) return;
+			var formId = parseInt($wrapper.attr('id').replace('gform_wrapper_', ''));
+			if (!formId || isNaN(formId)) return;
+			// Only trigger once per form per page load to avoid duplicate event listeners
+			if (_gf3DatepickerTriggered[formId]) return;
+			_gf3DatepickerTriggered[formId] = true;
+			// Dispatch gform/post_render so GF's theme script detects datepicker fields
+			// and lazy-loads the accessible datepicker chunk
+			document.dispatchEvent(new CustomEvent('gform/post_render', {
+				detail: { formId: formId, currentPage: 1 }
+			}));
 		}
 		function yeeaddons_change_id_logic(value, key) {
 			var field_rules_inner = [];
@@ -878,13 +942,15 @@
 			inputId = inputId.split('_');
 			// allow the user to override the datepicker options object
 			optionsObj = gform.applyFilters('gform_datepicker_options_pre_init', optionsObj, inputId[1], inputId[2], $element);
-			$element.datepicker(optionsObj);
-			// We give the input focus after selecting a date which differs from default Datepicker behavior; this prevents
-			// users from clicking on the input again to open the datepicker. Let's add a manual click event to handle this.
-			if ($element.is(':input')) {
-				$element.click(function () {
-					$element.datepicker('show');
-				});
+			if (typeof $element.datepicker === 'function') {
+				$element.datepicker(optionsObj);
+				// We give the input focus after selecting a date which differs from default Datepicker behavior; this prevents
+				// users from clicking on the input again to open the datepicker. Let's add a manual click event to handle this.
+				if ($element.is(':input')) {
+					$element.click(function () {
+						$element.datepicker('show');
+					});
+				}
 			}
 		}
 	})
