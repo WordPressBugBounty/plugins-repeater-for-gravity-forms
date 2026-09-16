@@ -3,11 +3,9 @@
  * Plugin Name: Repeater for Gravity Forms
  * Description: The add-on that allows specified groups of fields to be repeated by the user.
  * Plugin URI: https://add-ons.org/plugin/gravity-forms-repeater-fields/
- * Version: 3.1.1
+ * Version: 3.2.0
  * Author: add-ons.org
  * Author URI: https://add-ons.org/
- * Text Domain: repeater-for-gravity-forms
- * Domain Path: /languages
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */

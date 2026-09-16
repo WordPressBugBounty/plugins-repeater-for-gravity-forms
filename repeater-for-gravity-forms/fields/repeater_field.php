@@ -258,15 +258,25 @@ class Superaddons_GFRepeater_Field extends GF_Field
 									$failedValidation = true;
 								}
 								break;
+							case 'radio':
+								if (rgblank($getInputData)) {
+									$failedValidation = true;
+								} elseif ($getInputData === 'gf_other_choice') {
+									$other_val = rgpost($field . "_other__" . $id);
+									if (rgblank($other_val)) {
+										$failedValidation = true;
+									}
+								}
+								break;
 							default:
 								if (is_array($getInputData)) {
 									foreach ($getInputData as $vl) {
-										if (empty($vl)) {
+										if (rgblank($vl)) {
 											$failedValidation = true;
 										}
 									}
 								} else {
-									if (empty($getInputData)) {
+									if (rgblank($getInputData)) {
 										$failedValidation = true;
 									}
 								}

@@ -378,7 +378,7 @@
 				if (type == "checkbox") {
 					$(this).closest("div").find("label").attr("for", id + "-" + id_rand);
 					if (value_check != null) {
-						$(this).attr("checked", "checked");
+						$(this).prop("checked", true).attr("checked", "checked");
 					}
 				} else if (type == "file") {
 					$(this).attr("id", id + "-" + id_rand);
@@ -389,7 +389,7 @@
 					if (value_check != null) {
 						var old_check = $(this).val();
 						if (old_check == value_check) {
-							$(this).attr("checked", true);
+							$(this).prop("checked", true).attr("checked", "checked");
 						}
 					}
 				}
@@ -450,6 +450,7 @@
 			item.find(".repeater-field-header").append(header);
 			item.find(".repeater-field-content").append(html_field);
 			button.find(".repeater-field-warp-item").append(item);
+			item.find("input[type=radio][checked], input[type=checkbox][checked]").prop("checked", true);
 			update_repeater_count_header();
 			$("input").trigger("done_load_repeater");
 			var form_ids = button.attr("id").split("_");
