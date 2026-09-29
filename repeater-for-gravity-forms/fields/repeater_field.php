@@ -115,10 +115,44 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		if (is_array($value)) {
 			$value = '';
 		}
+		$id = intval($this->id);
+
+		// If resuming draft submission via Save & Continue and $value doesn't have saved_values,
+		// attempt to restore from draft $entry if available
+		if (empty($value) || (is_string($value) && strpos($value, 'saved_values') === false)) {
+			if (!empty($entry) && is_array($entry) && !empty($entry[$id])) {
+				$entry_data = maybe_unserialize($entry[$id]);
+				if (is_array($entry_data) && !empty($entry_data)) {
+					$decoded_value = !empty($value) ? json_decode($value, true) : array();
+					if (!is_array($decoded_value)) {
+						$decoded_value = array();
+					}
+					$row_ids = array_keys($entry_data);
+					$decoded_value['count'] = count($row_ids);
+					$decoded_value['id'] = $row_ids;
+					$saved_rows = array();
+					foreach ($entry_data as $row_id => $row_inputs) {
+						if (is_array($row_inputs)) {
+							foreach ($row_inputs as $in_name => $in_val) {
+								if (is_array($in_val)) {
+									foreach ($in_val as $sub_k => $sub_v) {
+										$saved_rows[$row_id]['input_' . str_replace('.', '_', $sub_k) . '__' . $row_id] = $sub_v;
+									}
+								} else {
+									$saved_rows[$row_id][$in_name] = $in_val;
+								}
+							}
+						}
+					}
+					$decoded_value['saved_values'] = $saved_rows;
+					$value = wp_json_encode($decoded_value);
+				}
+			}
+		}
+
 		$is_entry_detail = $this->is_entry_detail();
 		$is_form_editor = $this->is_form_editor();
 		$form_id = $form['id'];
-		$id = intval($this->id);
 		$field_id = $is_entry_detail || $is_form_editor || $form_id == 0 ? "input_$id" : 'input_' . $form_id . "_$id";
 		$size = $this->size;
 		$disabled_text = $is_form_editor ? "disabled='disabled'" : '';
@@ -146,8 +180,8 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		}
 		$limit = apply_filters("yeeaddons_gf_repeater_limit", 5, $limit);
 		$initial_rows = apply_filters("yeeaddons_gf_repeater_initial_rows", 1, $initial_rows);
-		$input = "<input data-initial_rows_map_check='" . $this->repeater_initial_rows_map . "' data-initial_rows_map='input_{$form_id}_" . $this->repeater_initial_rows_map . "' data-map_id='field_" . $form_id . "_" . $id . "' name='input_{$id}' id='{$field_id}' type='{$html_input_type}' value='{$value}' class='{$class}' {$tabindex} {$placeholder_attribute} {$required_attribute} {$invalid_attribute} {$disabled_text}/>";
-		$html = '<div data-initial_rows_map_check="' . $this->repeater_initial_rows_map . '" class="repeater-field-warp-item-data" data-initial_rows="' . $initial_rows . '" data-limit="' . $limit . '" data-initial_rows_map="input_' . $form_id . '_' . $this->repeater_initial_rows_map . '" data-map_id="field_' . $form_id . '_' . $id . '">
+		$input = "<input data-initial_rows_map_check='" . esc_attr($this->repeater_initial_rows_map) . "' data-initial_rows_map='input_{$form_id}_" . esc_attr($this->repeater_initial_rows_map) . "' data-map_id='field_" . $form_id . "_" . $id . "' name='input_{$id}' id='{$field_id}' type='{$html_input_type}' value='" . esc_attr($value) . "' class='{$class}' {$tabindex} {$placeholder_attribute} {$required_attribute} {$invalid_attribute} {$disabled_text}/>";
+		$html = '<div data-initial_rows_map_check="' . esc_attr($this->repeater_initial_rows_map) . '" class="repeater-field-warp-item-data" data-initial_rows="' . $initial_rows . '" data-limit="' . $limit . '" data-initial_rows_map="input_' . $form_id . '_' . esc_attr($this->repeater_initial_rows_map) . '" data-map_id="field_' . $form_id . '_' . $id . '">
 			<div class="repeater-field-warp-item">
 			</div>
 			<div class="repeater-field-footer"><a href="#"" class="gf-repeater-field-button-add" >' . $repeater_add_button . '</a></div>
@@ -160,6 +194,70 @@ class Superaddons_GFRepeater_Field extends GF_Field
 		} else {
 			return sprintf("<div class='ginput_container'>%s</div>", $html);
 		}
+	}
+	public static function save_draft_submission_values($submitted_values, $form)
+	{
+		if (empty($form['fields']) || !is_array($form['fields'])) {
+			return $submitted_values;
+		}
+
+		foreach ($form['fields'] as $field) {
+			if ($field->type !== 'repeater_end') {
+				continue;
+			}
+
+			$raw_value = rgar($submitted_values, $field->id);
+			if (empty($raw_value)) {
+				$raw_value = rgpost('input_' . $field->id);
+			}
+
+			if (empty($raw_value)) {
+				continue;
+			}
+
+			$repeater_data = is_array($raw_value) ? $raw_value : json_decode($raw_value, true);
+			if (!is_array($repeater_data) || empty($repeater_data['id']) || !is_array($repeater_data['id'])) {
+				continue;
+			}
+
+			// Capture all $_POST values for each repeater row
+			$saved_rows = array();
+			foreach ($repeater_data['id'] as $id_rand) {
+				$row_data = array();
+				foreach ($_POST as $post_key => $post_val) {
+					if (strpos($post_key, '__' . $id_rand) !== false) {
+						$row_data[$post_key] = wp_unslash($post_val);
+					}
+				}
+
+				// Also check if any file was uploaded in this row
+				$transient_keys = array();
+				$unique_id = rgpost('gform_unique_id');
+				if (!empty($unique_id)) {
+					$transient_keys[] = 'gf_repeater_files_' . $unique_id;
+				}
+				$transient_keys[] = 'gf_repeater_files_' . $form['id'];
+				$transient_keys[] = 'gf_repeater_files_1';
+
+				foreach ($transient_keys as $t_key) {
+					$transient_files = get_transient($t_key);
+					if (is_array($transient_files)) {
+						foreach ($transient_files as $tk => $tv) {
+							if (strpos($tk, '__' . $id_rand) !== false && !empty($tv)) {
+								$row_data[$tk] = $tv;
+							}
+						}
+					}
+				}
+
+				$saved_rows[$id_rand] = $row_data;
+			}
+
+			$repeater_data['saved_values'] = $saved_rows;
+			$submitted_values[$field->id] = wp_json_encode($repeater_data);
+		}
+
+		return $submitted_values;
 	}
 	public static function remove_validation($form)
 	{

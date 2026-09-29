@@ -295,7 +295,7 @@
 			}
 		}
 		var input_ids = [];
-		function change_name_and_ids(item, field_end = null, key = null) {
+		function change_name_and_ids(item, field_end = null, key = null, row_data = null) {
 			if (key == null) {
 				var id_rand = Math.floor(Math.random() * 10000);
 			} else {
@@ -308,6 +308,27 @@
 			field_end.find(".gf-field-repeater-data").val(JSON.stringify(datas));
 			item = $(item);
 			item.attr("data-id", id_rand);
+
+			function get_saved_field_val(fieldName) {
+				if (!row_data || typeof row_data !== 'object') {
+					return null;
+				}
+				var clean = fieldName.replace(/\[\]$/, '');
+				if (row_data[clean] !== undefined) {
+					return row_data[clean];
+				}
+				var withUnderscore = clean.replace(/\./g, '_');
+				if (row_data[withUnderscore] !== undefined) {
+					return row_data[withUnderscore];
+				}
+				for (var rk in row_data) {
+					if (rk === clean || rk === withUnderscore || rk.replace(/\./g, '_') === withUnderscore) {
+						return row_data[rk];
+					}
+				}
+				return null;
+			}
+
 			$(".gfield_visibility_visible", item).each(function () {
 				var id = $(this).attr("id");
 				$(this).attr("id", id + "-" + id_rand);
@@ -345,6 +366,7 @@
 				var type = $(this).attr("type");
 				var id = $(this).attr("id");
 				input_ids.push(id);
+				var original_name = name;
 				if (name != "" && name.endsWith('[]')) {
 					name = name.replace(/\[\]$/, '');
 					$(this).attr("name", name + "__" + id_rand + "[]");
@@ -375,28 +397,64 @@
 					}
 				}
 				var value_check = localStorage.getItem(id + "-" + id_rand);
+				var saved_val = get_saved_field_val(name + "__" + id_rand);
+				if (saved_val === null) {
+					saved_val = get_saved_field_val(original_name + "__" + id_rand);
+				}
 				if (type == "checkbox") {
 					$(this).closest("div").find("label").attr("for", id + "-" + id_rand);
-					if (value_check != null) {
+					if (saved_val !== null) {
+						var is_checked = false;
+						if (Array.isArray(saved_val)) {
+							is_checked = saved_val.indexOf($(this).val()) !== -1;
+						} else {
+							is_checked = ($(this).val() == saved_val);
+						}
+						if (is_checked) {
+							$(this).prop("checked", true).attr("checked", "checked");
+						} else {
+							$(this).prop("checked", false).removeAttr("checked");
+						}
+					} else if (value_check != null) {
 						$(this).prop("checked", true).attr("checked", "checked");
 					}
 				} else if (type == "file") {
 					$(this).attr("id", id + "-" + id_rand);
+					if (saved_val && typeof saved_val === 'string' && saved_val.indexOf('http') === 0) {
+						var $fileContainer = $(this).closest('.ginput_container_fileupload');
+						if ($fileContainer.length && !$fileContainer.find('.gf-repeater-saved-file').length) {
+							var fileName = saved_val.split('/').pop();
+							$fileContainer.append('<div class="gf-repeater-saved-file" style="margin-top:5px;font-size:13px;">' +
+								'<a href="' + encodeURI(saved_val) + '" target="_blank" rel="noopener">' + (fileName || saved_val) + '</a>' +
+								'<input type="hidden" name="' + name + '__' + id_rand + '" value="' + saved_val + '" />' +
+								'</div>');
+						}
+					}
 				} else if (type == "radio") {
 					$(this).attr("id", id + "-" + id_rand);
 					$(this).closest("div, li").find("label").attr("for", id + "-" + id_rand);
-					var value_check = localStorage.getItem(name + "__" + id_rand);
-					if (value_check != null) {
-						var old_check = $(this).val();
-						if (old_check == value_check) {
+					if (saved_val !== null) {
+						if ($(this).val() == saved_val) {
 							$(this).prop("checked", true).attr("checked", "checked");
+						} else {
+							$(this).prop("checked", false).removeAttr("checked");
+						}
+					} else {
+						var value_check = localStorage.getItem(name + "__" + id_rand);
+						if (value_check != null) {
+							var old_check = $(this).val();
+							if (old_check == value_check) {
+								$(this).prop("checked", true).attr("checked", "checked");
+							}
 						}
 					}
 				}
 				else {
 					// ensure the field label's "for" attribute corresponds with the field's ID
 					$(this).closest("div").parent().find("label").attr("for", id + "-" + id_rand);
-					if (value_check != null) {
+					if (saved_val !== null) {
+						$(this).val(saved_val);
+					} else if (value_check != null) {
 						$(this).val(value_check);
 					}
 				}
@@ -408,9 +466,14 @@
 				$(this).attr("id", id + "-" + id_rand);
 				// ensure the field label's "for" attribute corresponds with the field's ID
 				$(this).closest("div").parent().find("label").attr("for", id + "-" + id_rand);
-				var value_check = localStorage.getItem(id + "-" + id_rand);
-				if (value_check != null) {
-					$(this).val(value_check);
+				var saved_val = get_saved_field_val(name + "__" + id_rand);
+				if (saved_val !== null) {
+					$(this).val(saved_val);
+				} else {
+					var value_check = localStorage.getItem(id + "-" + id_rand);
+					if (value_check != null) {
+						$(this).val(value_check);
+					}
 				}
 			})
 			$("select", item).each(function () {
@@ -425,14 +488,19 @@
 				$(this).attr("id", id + "-" + id_rand);
 				// ensure the field label's "for" attribute corresponds with the field's ID
 				$(this).closest("div").parent().find("label").attr("for", id + "-" + id_rand);
-				var value_check = localStorage.getItem(id + "-" + id_rand);
-				if (value_check != null) {
-					$(this).val(value_check);
+				var saved_val = get_saved_field_val(name + "__" + id_rand);
+				if (saved_val !== null) {
+					$(this).val(saved_val);
+				} else {
+					var value_check = localStorage.getItem(id + "-" + id_rand);
+					if (value_check != null) {
+						$(this).val(value_check);
+					}
 				}
 			})
 			return item;
 		}
-		function add_repeater_data(button, key = null) {
+		function add_repeater_data(button, key = null, row_data = null) {
 			var start_field;
 			if (key == null) {
 				var key = Math.floor(Math.random() * 10000);
@@ -445,7 +513,7 @@
 					return false;
 				}
 			})
-			var html_field = get_repeater_data(button, key);
+			var html_field = get_repeater_data(button, key, row_data);
 			var header = get_repeater_data_header(start_field);
 			item.find(".repeater-field-header").append(header);
 			item.find(".repeater-field-content").append(html_field);
@@ -589,12 +657,12 @@
 				conditional_logic_custom(datas[1]);
 			}
 		}, 10);
-		function get_repeater_data(step_field, key = null) {
+		function get_repeater_data(step_field, key = null, row_data = null) {
 			var data_html = step_field.find(".gf-field-repeater-data-html").val();
 			if (data_html == "") {
 				data_html = step_field.find(".gf-field-repeater-data-html").attr('value');
 			}
-			var html_step = change_name_and_ids(data_html, step_field, key);
+			var html_step = change_name_and_ids(data_html, step_field, key, row_data);
 			return html_step;
 		}
 		function get_repeater_data_name() {
@@ -675,14 +743,25 @@
 					initial_rows = 1;
 				}
 				if (value != "") {
-					value = JSON.parse(value);
-					initial_rows = value.count;
-					var data_arr_ids = value.id;
-					setTimeout(function () {
-						for (var j = 0; j < initial_rows; j++) {
-							add_repeater_data(step_field.closest(".gfield--type-repeater_end"), data_arr_ids[j]);
-						}
-					}, 100);
+					try {
+						var parsed_val = typeof value === "string" ? JSON.parse(value) : value;
+						initial_rows = parsed_val.count !== undefined ? parsed_val.count : (parsed_val.id ? parsed_val.id.length : 1);
+						var data_arr_ids = parsed_val.id || [];
+						var saved_values = parsed_val.saved_values || null;
+						setTimeout(function () {
+							for (var j = 0; j < initial_rows; j++) {
+								var row_id = data_arr_ids[j] !== undefined ? data_arr_ids[j] : null;
+								var row_data = (saved_values && row_id && saved_values[row_id]) ? saved_values[row_id] : null;
+								add_repeater_data(step_field.closest(".gfield--type-repeater_end"), row_id, row_data);
+							}
+						}, 100);
+					} catch (e) {
+						setTimeout(function () {
+							for (var j = 0; j < initial_rows; j++) {
+								add_repeater_data(step_field.closest(".gfield--type-repeater_end"));
+							}
+						}, 100);
+					}
 				} else {
 					setTimeout(function () {
 						for (var j = 0; j < initial_rows; j++) {
