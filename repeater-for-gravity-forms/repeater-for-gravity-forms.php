@@ -3,7 +3,7 @@
  * Plugin Name: Repeater for Gravity Forms
  * Description: The add-on that allows specified groups of fields to be repeated by the user.
  * Plugin URI: https://add-ons.org/plugin/gravity-forms-repeater-fields/
- * Version: 3.2.1
+ * Version: 3.2.2
  * Author: add-ons.org
  * Author URI: https://add-ons.org/
  * License: GPL v2 or later
@@ -66,6 +66,20 @@ class Yeeaddons_GF_Repeater_Init
 			<input type="text" id="repeater_max" placeholder="5" value=""
 				onchange="SetFieldProperty('repeater_max', this.value);">
 			<?php esc_html_e("Max number of rows applicable by the user, leave empty for no limit (Free version limit = 5 )", 'repeater-for-gravity-forms') ?>
+		</li>
+		<li class="field_setting">
+			<label class="section_label">
+				<?php esc_html_e('Pricing Fields Support', 'repeater-for-gravity-forms'); ?>
+			</label>
+			<div class="pro_disable" style="opacity: 0.65; cursor: not-allowed; margin-top: 5px;">
+				<label style="cursor: not-allowed; display: inline-flex; align-items: center; gap: 5px;">
+					<input type="checkbox" disabled="disabled">
+					<span><?php esc_html_e('Calculate Pricing in Repeater', 'repeater-for-gravity-forms'); ?></span>
+					<span
+						style="font-size: 10px; background: #d63638; color: #fff; padding: 1px 5px; border-radius: 3px; font-weight: 700; text-transform: uppercase;">PRO</span>
+				</label>
+			</div>
+			<?php esc_html_e("Allows Product, Option, and Quantity fields inside Repeater to calculate Total and process payments (Upgrade to Pro version)", 'repeater-for-gravity-forms') ?>
 		</li>
 		<?php
 	}
