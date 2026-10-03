@@ -3,7 +3,7 @@ Contributors: addonsorg
 Tags: Gravity Forms, Gravity Forms fields, Repeater, Repeater form, Repeater field
 Requires at least: 2.0
 Tested up to: 7.1
-Stable tag: 3.2.2
+Stable tag: 3.2.3
 Requires PHP: 5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -22,27 +22,9 @@ The Repeater Fields for Gravity Forms allow you to create one or more sets of fi
 
 Have you ever wanted to let your users submit multiple entries of the same field set as a single form on your WordPress site? If so, you’re in luck! This is a plugin to help you do it!
 
-### Save and Continue Later Support
-Fully compatible with Gravity Forms' built-in **Save and Continue Later** feature! When users save their unfinished submission and return via the save token link:
-* **Preserves All Repeated Rows**: All added rows are automatically re-created in their exact order.
-* **Restores Field Data**: Inputs including text, numbers, dates, checkboxes, radio buttons, and pricing choices are restored.
-* **Retains Uploaded Files**: Attachments and files uploaded inside repeater rows are safely preserved across draft sessions.
-
-== Features ==
-- **Initial Rows & Field Mapping (Pro)**: Set custom default row counts or link repeater rows dynamically to a number/dropdown field (e.g., Number of Guests/Tickets).
-- **Save and Continue Later Support**: Seamlessly saves and restores all repeated rows and input values when resuming draft submissions.
-- **Pricing & Payment Fields (Pro)**: Calculate Product, Option, and Quantity inside Repeater rows with real-time Total calculation and payment gateway integration.
-- **File Uploads Support**: Allow single or multiple file uploads inside repeated rows.
-- **Minimum Rows**: Sets a limit on how many rows of data are required.
-- **Maximum Rows**: Sets a limit on how many rows of data are allowed.
-- **Button Label**: Customizable text shown on the ‘Add Row’ button.
-- **Conditional Logic support**: Supports conditional logic inside and outside repeaters.
-- **Date picker support**: Full date/time picker support inside repeated fields.
-- **Entry and print preview support**: Easily view, export, and print repeated entries.
-- **Drag and drop repeatable fields**: Simple and flexible form builder experience.
-
 ### Pricing & Payment Fields Support (Pro)
-Easily create repeatable booking, ticket, quotation, or registration forms! With the Pro version, you can place Gravity Forms **Pricing Fields** (Product, Option, and Quantity) directly inside your repeaters:
+Easily create repeatable booking, ticket, quotation, or registration forms! With the Pro version, you can place Gravity Forms **Pricing Fields** (Product, Option, Quantity, and Total) directly inside your repeaters:
+* **Row Total & Grand Total Support**: Place a Total field inside repeater rows to calculate each row's subtotal `(Product + Options) * Quantity`, and place a Total field outside the repeater to calculate the Grand Total of all rows combined! Both can be used together seamlessly.
 * **Real-time Price Calculation**: The form's Total field updates dynamically in real time as customers add, remove, or modify repeated rows.
 * **Supports All Product Types**: Single Product, Drop Down, Radio Buttons, User Defined Price, and Calculation products.
 * **Option & Quantity Support**: Sub-options (Drop Down, Radio, Checkboxes) and item quantities are calculated per individual repeater row.
@@ -55,6 +37,26 @@ Control exactly how many rows appear when the form loads, or bind repeater row c
 * **Smart Field Mapping**: Connect the repeater directly to another field in your form (such as a Number, Drop Down, or Quantity field) using its Field ID.
 * **Instant Dynamic Row Generation**: When the user enters or selects a number (e.g., "Number of Attendees: 4"), the repeater automatically expands to create exactly 4 rows in real time.
 * **Streamlined User Experience**: Optionally locks the row count and hides manual "+ Add Row" / delete buttons when mapped, preventing submission mismatches for ticket bookings, group registrations, and order forms.
+
+### Save and Continue Later Support
+Fully compatible with Gravity Forms' built-in **Save and Continue Later** feature! When users save their unfinished submission and return via the save token link:
+* **Preserves All Repeated Rows**: All added rows are automatically re-created in their exact order.
+* **Restores Field Data**: Inputs including text, numbers, dates, checkboxes, radio buttons, and pricing choices are restored.
+* **Retains Uploaded Files**: Attachments and files uploaded inside repeater rows are safely preserved across draft sessions.
+
+== Features ==
+- **Row Subtotal & Grand Total Support (Pro)**: Supports Total fields both inside repeater rows (as row subtotal) and outside repeater (as grand total), or both at once.
+- **Initial Rows & Field Mapping (Pro)**: Set custom default row counts or link repeater rows dynamically to a number/dropdown field (e.g., Number of Guests/Tickets).
+- **Save and Continue Later Support**: Seamlessly saves and restores all repeated rows and input values when resuming draft submissions.
+- **Pricing & Payment Fields (Pro)**: Calculate Product, Option, and Quantity inside Repeater rows with real-time Total calculation and payment gateway integration.
+- **File Uploads Support**: Allow single or multiple file uploads inside repeated rows.
+- **Minimum Rows**: Sets a limit on how many rows of data are required.
+- **Maximum Rows**: Sets a limit on how many rows of data are allowed.
+- **Button Label**: Customizable text shown on the ‘Add Row’ button.
+- **Conditional Logic support**: Supports conditional logic inside and outside repeaters.
+- **Date picker support**: Full date/time picker support inside repeated fields.
+- **Entry and print preview support**: Easily view, export, and print repeated entries.
+- **Drag and drop repeatable fields**: Simple and flexible form builder experience.
 
 == Pro Version ==
 * Dynamic Initial Rows count & Field Mapping (Auto-generate rows based on user input)
