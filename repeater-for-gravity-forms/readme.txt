@@ -3,7 +3,7 @@ Contributors: addonsorg
 Tags: Gravity Forms, Gravity Forms fields, Repeater, Repeater form, Repeater field
 Requires at least: 2.0
 Tested up to: 7.1
-Stable tag: 3.2.3
+Stable tag: 3.2.4
 Requires PHP: 5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -105,6 +105,9 @@ Each repeated row is itemized in the Order Summary table (e.g., "Ticket (Row 1)"
 3. Admin builder
 
 == Changelog ==
+= 3.2.4 =
+- Fixed: Pricing
+
 = 3.2.1 =
 - Added: Pricing Fields support in Repeater (Pro) - Dynamic calculation for Product, Option, Quantity fields and payment gateway integration.
 - Added: Full support for Save and Continue Later - Automatically preserves and restores all repeated rows, entered field values, and files when resuming via draft token link. 

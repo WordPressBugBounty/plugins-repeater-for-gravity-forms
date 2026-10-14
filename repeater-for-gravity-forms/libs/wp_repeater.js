@@ -522,6 +522,8 @@
 			update_repeater_count_header();
 			$("input").trigger("done_load_repeater");
 			var form_ids = button.attr("id").split("_");
+			// Notify add-ons (e.g. pricing support) that a row was added: form id, row element, row id, repeater end field, end field id
+			$(document).trigger("yeeaddons_gf_repeater_row_added", [form_ids[1], item, key, button, form_ids[2]]);
 			if (yeeaddons_gf_repeater_data.pro == "ok") {
 				var form_id = form_ids[1];
 				if (window["gf_form_conditional_logic"] !== undefined) {
@@ -782,6 +784,8 @@
 			for (let i = 0; i < number; i++) {
 				$("#" + repeater_id).find(".gf-repeater-field-button-add").click();
 			}
+			var map_end_ids = repeater_id.split("_");
+			$(document).trigger("yeeaddons_gf_repeater_row_removed", [map_end_ids[1], $("#" + repeater_id), null, map_end_ids[2]]);
 		})
 		function get_repeater_data_header(start_field) {
 			var html_step = start_field.find(".repeater-field-header-data").val();
@@ -870,7 +874,10 @@
 				datas.id = datas_ids;
 				$(this).closest(".gfield--type-repeater_end").find(".gf-field-repeater-data").val(JSON.stringify(datas));
 				$(this).closest(".gfield--type-repeater_end").find(".gf-field-repeater-data").attr("value", JSON.stringify(datas));
+				var end_field = $(this).closest(".gfield--type-repeater_end");
+				var end_ids = (end_field.attr("id") || "").split("_");
 				$(this).closest(".repeater-field-item").remove();
+				$(document).trigger("yeeaddons_gf_repeater_row_removed", [end_ids[1], end_field, id, end_ids[2]]);
 			} else {
 			}
 			update_repeater_count_header();
